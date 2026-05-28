@@ -58,6 +58,7 @@ function SurveyPageContent() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submission, setSubmission] = useState<Submission | null>(null);
+  const [submissionExpired, setSubmissionExpired] = useState(false);
   const [applicationsUsed, setApplicationsUsed] = useState<string[]>([]);
   const [worksWellAspects, setWorksWellAspects] = useState<string[]>([]);
   const [improvementAreas, setImprovementAreas] = useState<string[]>([]);
@@ -89,6 +90,12 @@ function SurveyPageContent() {
         });
 
         if (!response.ok) {
+          if (response.status === 404 && mounted) {
+            // Server likely restarted and lost in-memory store. Still show the form.
+            setSubmissionExpired(true);
+            setLoading(false);
+            return;
+          }
           const payload = (await response.json()) as { message?: string };
           throw new Error(payload.message ?? "Unable to load submission.");
         }
@@ -130,10 +137,6 @@ function SurveyPageContent() {
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!submission) {
-      return;
-    }
-
     setSubmitting(true);
     setError(null);
 
@@ -143,7 +146,7 @@ function SurveyPageContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           sessionId: sessionId || undefined,
-          submissionId: submission.id,
+          submissionId: submission?.id ?? params.id,
           applicationsUsed,
           worksWellAspects,
           improvementAreas,
@@ -154,12 +157,23 @@ function SurveyPageContent() {
       });
 
       if (!response.ok) {
-        const payload = (await response.json()) as { message?: string };
-        throw new Error(payload.message ?? "Failed to submit feedback.");
+        const raw = await response.text();
+        let message = "Failed to submit feedback.";
+
+        if (raw.trim()) {
+          try {
+            const payload = JSON.parse(raw) as { message?: string };
+            message = payload.message ?? message;
+          } catch {
+            message = raw;
+          }
+        }
+
+        throw new Error(message);
       }
 
-      const payload = (await response.json()) as { resultUrl: string };
-      router.replace(payload.resultUrl);
+      const payload = (await response.json()) as { resultUrl: string | null };
+      router.replace(payload.resultUrl ?? "/join");
     } catch (submitError) {
       setError(
         submitError instanceof Error
@@ -179,7 +193,7 @@ function SurveyPageContent() {
     );
   }
 
-  if (!submission) {
+  if (!submission && !submissionExpired) {
     return (
       <main className="mx-auto flex min-h-screen w-full max-w-3xl flex-col items-center justify-center px-6 py-10 text-center sm:px-8">
         <p className="text-lg text-rose-200">{error ?? "Submission not found."}</p>
