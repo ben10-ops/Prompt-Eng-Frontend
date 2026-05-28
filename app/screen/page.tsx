@@ -1,7 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { backendApi } from "@/lib/api";
+
+const PUBLIC_APP_URL =
+  process.env.NEXT_PUBLIC_APP_URL ?? "https://prompt-war-six.vercel.app";
 
 type Challenge = {
   id: string;
@@ -29,9 +33,14 @@ type Submission = {
 };
 
 type StatePayload = {
+  sessionId?: string;
+  maxPlayers?: number;
+  currentPlayers?: number;
+  isAtCapacity?: boolean;
   challenge: Challenge;
   leaderboard: Submission[];
   recentResults: Submission[];
+  pendingResults?: Submission[];
   latest: Submission | null;
 };
 
@@ -43,6 +52,8 @@ function scoreColor(score: number) {
 }
 
 export default function ScreenPage() {
+  const searchParams = useSearchParams();
+  const sessionId = searchParams.get("sessionId")?.trim() ?? "";
   const [state, setState] = useState<StatePayload | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [carouselIndex, setCarouselIndex] = useState(0);
@@ -53,7 +64,8 @@ export default function ScreenPage() {
 
     async function loadState() {
       try {
-        const response = await fetch(backendApi("/api/state"), { cache: "no-store" });
+        const sessionQuery = sessionId ? `?sessionId=${encodeURIComponent(sessionId)}` : "";
+        const response = await fetch(backendApi(`/api/state${sessionQuery}`), { cache: "no-store" });
 
         if (!response.ok) {
           throw new Error(`Backend returned ${response.status}`);
@@ -81,16 +93,18 @@ export default function ScreenPage() {
       mounted = false;
       clearInterval(poll);
     };
-  }, []);
+  }, [sessionId]);
 
-  const recentResults = state?.recentResults ?? [];
+  const leaderboardTopFive = (state?.leaderboard ?? []).slice(0, 5);
+  const displayResults = leaderboardTopFive;
+
   const carouselResults = (() => {
-    if (recentResults.length <= 1) return recentResults;
-    return [...recentResults, recentResults[0]];
+    if (displayResults.length <= 1) return displayResults;
+    return [...displayResults, displayResults[0]];
   })();
 
   useEffect(() => {
-    if (recentResults.length <= 1) return;
+    if (displayResults.length <= 1) return;
 
     const rotate = setInterval(() => {
       setIsSliding(true);
@@ -98,20 +112,26 @@ export default function ScreenPage() {
     }, 4000);
 
     return () => clearInterval(rotate);
-  }, [recentResults.length]);
+  }, [displayResults.length]);
 
-  const activeResult = recentResults.length
-    ? recentResults[carouselIndex % recentResults.length]
+  const activeResult = displayResults.length
+    ? displayResults[carouselIndex % displayResults.length]
     : null;
 
   const joinUrl = useMemo(() => {
-    if (typeof window === "undefined") return "/join";
-    return `${window.location.origin}/join`;
-  }, []);
+    if (typeof window === "undefined") {
+      const suffix = sessionId ? `?sessionId=${encodeURIComponent(sessionId)}` : "";
+      return `${PUBLIC_APP_URL}/join${suffix}`;
+    }
+
+    const baseUrl = PUBLIC_APP_URL || window.location.origin;
+    const suffix = sessionId ? `?sessionId=${encodeURIComponent(sessionId)}` : "";
+    return `${baseUrl.replace(/\/$/, "")}/join${suffix}`;
+  }, [sessionId]);
 
   function handleCarouselTransitionEnd() {
-    if (recentResults.length <= 1) return;
-    if (carouselIndex !== recentResults.length) return;
+    if (displayResults.length <= 1) return;
+    if (carouselIndex !== displayResults.length) return;
 
     setIsSliding(false);
     setCarouselIndex(0);
@@ -140,6 +160,10 @@ export default function ScreenPage() {
         <div>
           <p className="text-xs uppercase tracking-[0.35em] text-cyan-200/80">Prompt Wars Live</p>
           <h1 className="mt-1 text-3xl font-semibold tracking-tight">Can You Think Like AI?</h1>
+          <p className="mt-1 text-sm text-white/70">
+            Players: {state.currentPlayers ?? 0}/{state.maxPlayers ?? 20}
+            {state.isAtCapacity ? " (Session Full)" : ""}
+          </p>
         </div>
         {loadError ? <p className="text-sm text-rose-300">{loadError}</p> : null}
       </header>
@@ -153,12 +177,12 @@ export default function ScreenPage() {
                 <img
                   src={state.challenge.imageUrl}
                   alt={state.challenge.title}
-                  className="h-full w-full object-cover object-center"
+                  className="h-full w-full object-scale-down object-center"
                 />
               </div>
             </div>
             <div>
-              <p className="mb-2 text-xs uppercase tracking-[0.25em] text-white/60">Live User Results</p>
+              <p className="mb-2 text-xs uppercase tracking-[0.25em] text-white/60">Top 5 User Results</p>
               {activeResult ? (
                 <div className="relative h-[34vh] min-h-[260px] overflow-hidden rounded-2xl border border-white/15 bg-black/40">
                   <div
@@ -167,16 +191,19 @@ export default function ScreenPage() {
                     style={{ transform: `translateX(-${carouselIndex * 100}%)` }}
                   >
                     {carouselResults.map((result, index) => (
-                      <img
-                        key={`${result.id}-${index}`}
-                        src={result.generatedImageUrl}
-                        alt={`Generated by ${result.playerName}`}
-                        className="h-full min-w-full object-cover object-center"
-                      />
+                      <div key={`${result.id}-${index}`} className="h-full min-w-full bg-black/50 p-2">
+                        <img
+                          src={result.generatedImageUrl}
+                          alt={`Generated by ${result.playerName}`}
+                          className="h-full w-full object-scale-down object-center"
+                        />
+                      </div>
                     ))}
                   </div>
                   <div className="absolute inset-x-0 bottom-0 bg-black/65 px-3 py-2 text-sm text-white/95">
-                    {activeResult.playerName} • Score {activeResult.scores.finalScore} • {(carouselIndex % recentResults.length) + 1}/{recentResults.length}
+                    {activeResult.playerName}
+                    {` • Score ${activeResult.scores.finalScore}`}
+                    {` • ${(carouselIndex % displayResults.length) + 1}/${displayResults.length}`}
                   </div>
                 </div>
               ) : (
@@ -208,12 +235,12 @@ export default function ScreenPage() {
 
         <aside className="space-y-6">
           <section className="rounded-3xl border border-white/15 bg-white/5 p-5">
-            <h3 className="text-sm uppercase tracking-[0.25em] text-white/70">Leaderboard</h3>
+            <h3 className="text-sm uppercase tracking-[0.25em] text-white/70">Leaderboard (Top 5)</h3>
             <div className="mt-4 space-y-2">
               {state.leaderboard.length === 0 ? (
                 <p className="text-sm text-white/60">No users yet. Scan and submit to begin.</p>
               ) : (
-                state.leaderboard.map((user, index) => (
+                state.leaderboard.slice(0, 5).map((user, index) => (
                   <div key={user.id} className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/25 px-3 py-2">
                     <p className="text-sm text-white/85">
                       {index + 1}. {user.playerName}

@@ -53,6 +53,7 @@ Set these in Vercel (Frontend project):
 
 - `NEXT_PUBLIC_BACKEND_URL=https://prompt-eng-backend.onrender.com`
 - `BACKEND_URL=https://prompt-eng-backend.onrender.com`
+- `NEXT_PUBLIC_APP_URL=https://prompt-war-six.vercel.app`
 
 ## Notes
 

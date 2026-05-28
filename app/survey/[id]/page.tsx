@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { backendApi } from "@/lib/api";
 
 const APPLICATION_OPTIONS = [
@@ -51,6 +51,8 @@ type SubmissionPayload = {
 export default function SurveyPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const sessionId = searchParams.get("sessionId")?.trim() ?? "";
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -81,7 +83,8 @@ export default function SurveyPage() {
 
     async function loadSubmission() {
       try {
-        const response = await fetch(backendApi(`/api/submission/${params.id}`), {
+        const sessionQuery = sessionId ? `?sessionId=${encodeURIComponent(sessionId)}` : "";
+        const response = await fetch(backendApi(`/api/submission/${params.id}${sessionQuery}`), {
           cache: "no-store",
         });
 
@@ -122,7 +125,7 @@ export default function SurveyPage() {
     return () => {
       mounted = false;
     };
-  }, [params.id, router]);
+  }, [params.id, router, sessionId]);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -139,6 +142,7 @@ export default function SurveyPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          sessionId: sessionId || undefined,
           submissionId: submission.id,
           applicationsUsed,
           worksWellAspects,

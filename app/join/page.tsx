@@ -1,8 +1,8 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { backendApi } from "@/lib/api";
 
 type SubmitResult = {
@@ -12,6 +12,8 @@ type SubmitResult = {
 
 export default function JoinPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const sessionId = searchParams.get("sessionId")?.trim() ?? "";
   const [playerName, setPlayerName] = useState("");
   const [prompt, setPrompt] = useState("");
   const [loading, setLoading] = useState(false);
@@ -19,6 +21,7 @@ export default function JoinPage() {
   const [timerStartedAt, setTimerStartedAt] = useState<number | null>(null);
   const [secondsLeft, setSecondsLeft] = useState(60);
   const [isExpired, setIsExpired] = useState(false);
+  const autoSubmittedRef = useRef(false);
 
   const promptHints = useMemo(
     () => [
@@ -41,47 +44,75 @@ export default function JoinPage() {
 
       if (remaining === 0) {
         setIsExpired(true);
-        setError("Your 1-minute entry window has expired. Please refresh to try again.");
       }
     }, 250);
 
     return () => clearInterval(tick);
   }, [isExpired, timerStartedAt]);
 
-  async function onSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  const submitPrompt = useCallback(
+    async (autoTriggered: boolean) => {
+      if (loading) {
+        return;
+      }
 
-    if (isExpired) {
-      setError("Your 1-minute entry window has expired. Please refresh to try again.");
+      if (!autoTriggered && isExpired) {
+        setError("Your 1-minute entry window has expired. Please refresh to try again.");
+        return;
+      }
+
+      setError(null);
+      setLoading(true);
+
+      try {
+        const backendResponse = await fetch(backendApi("/api/submit"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sessionId: sessionId || undefined,
+            playerName,
+            prompt,
+          }),
+        });
+
+        if (!backendResponse.ok) {
+          const payload = (await backendResponse.json()) as { message?: string };
+          throw new Error(payload.message ?? "Unable to submit prompt.");
+        }
+
+        const payload = (await backendResponse.json()) as SubmitResult;
+        router.push(payload.surveyUrl);
+      } catch (submitError) {
+        const message =
+          submitError instanceof Error
+            ? submitError.message
+            : "Something went wrong while submitting.";
+        setError(
+          autoTriggered
+            ? `Time is up. Auto-submit failed: ${message}`
+            : message,
+        );
+      } finally {
+        setLoading(false);
+      }
+    },
+    [isExpired, loading, playerName, prompt, router, sessionId],
+  );
+
+  useEffect(() => {
+    if (secondsLeft !== 0 || autoSubmittedRef.current || loading) {
       return;
     }
 
-    setError(null);
-    setLoading(true);
+    autoSubmittedRef.current = true;
+    void submitPrompt(true);
+  }, [loading, secondsLeft, submitPrompt]);
 
-    try {
-      const backendResponse = await fetch(backendApi("/api/submit"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ playerName, prompt }),
-      });
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
 
-      if (!backendResponse.ok) {
-        const payload = (await backendResponse.json()) as { message?: string };
-        throw new Error(payload.message ?? "Unable to submit prompt.");
-      }
-
-      const payload = (await backendResponse.json()) as SubmitResult;
-      router.push(payload.surveyUrl);
-    } catch (submitError) {
-      setError(
-        submitError instanceof Error
-          ? submitError.message
-          : "Something went wrong while submitting.",
-      );
-    } finally {
-      setLoading(false);
-    }
+    autoSubmittedRef.current = true;
+    await submitPrompt(false);
   }
 
   return (
@@ -89,7 +120,7 @@ export default function JoinPage() {
       <div className="mb-8 flex items-center justify-between">
         <h1 className="text-3xl font-semibold tracking-tight">Join Prompt Wars</h1>
         <Link
-          href="/screen"
+          href={sessionId ? `/screen?sessionId=${encodeURIComponent(sessionId)}` : "/screen"}
           className="rounded-full border border-white/20 px-4 py-2 text-sm text-white/80 transition hover:border-white/50 hover:text-white"
         >
           View Main Screen
