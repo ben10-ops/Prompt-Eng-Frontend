@@ -1,0 +1,48 @@
+@import "tailwindcss";
+
+:root {
+  --background: #090e16;
+  --foreground: #eff4ff;
+  --surface: rgba(10, 16, 28, 0.82);
+  --surface-border: rgba(210, 230, 255, 0.16);
+  --font-geist-sans: "Segoe UI";
+  --font-geist-mono: "Consolas";
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-border: var(--surface-border);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background:
+    radial-gradient(circle at 15% 20%, rgba(71, 198, 255, 0.24), transparent 35%),
+    radial-gradient(circle at 78% 16%, rgba(110, 255, 218, 0.15), transparent 38%),
+    radial-gradient(circle at 85% 78%, rgba(253, 204, 101, 0.14), transparent 28%),
+    linear-gradient(130deg, #0a111c 0%, #0a1728 45%, #0a1421 100%);
+  background-attachment: fixed;
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), "Segoe UI", Tahoma, sans-serif;
+}
+
+* {
+  scrollbar-color: rgba(172, 211, 255, 0.55) rgba(8, 15, 24, 0.4);
+}
+
+@keyframes glowPulse {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.08);
+  }
+}
+
+.pulse-glow {
+  animation: glowPulse 2.4s ease-in-out infinite;
+}
