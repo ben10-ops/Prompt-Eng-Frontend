@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { backendApi } from "@/lib/api";
 
@@ -51,7 +51,7 @@ function scoreColor(score: number) {
   return "text-rose-300";
 }
 
-export default function ScreenPage() {
+function ScreenPageContent() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get("sessionId")?.trim() ?? "";
   const [state, setState] = useState<StatePayload | null>(null);
@@ -269,5 +269,19 @@ export default function ScreenPage() {
         </aside>
       </section>
     </main>
+  );
+}
+
+export default function ScreenPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="grid min-h-screen place-items-center text-white">
+          <p className="animate-pulse text-lg tracking-wide text-white/80">Booting main screen...</p>
+        </main>
+      }
+    >
+      <ScreenPageContent />
+    </Suspense>
   );
 }

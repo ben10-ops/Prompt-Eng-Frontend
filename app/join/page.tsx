@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { backendApi } from "@/lib/api";
@@ -10,7 +10,7 @@ type SubmitResult = {
   surveyUrl: string;
 };
 
-export default function JoinPage() {
+function JoinPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const sessionId = searchParams.get("sessionId")?.trim() ?? "";
@@ -189,5 +189,19 @@ export default function JoinPage() {
         </button>
       </form>
     </main>
+  );
+}
+
+export default function JoinPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="grid min-h-screen place-items-center text-white">
+          <p className="animate-pulse text-lg tracking-wide text-white/80">Loading join page...</p>
+        </main>
+      }
+    >
+      <JoinPageContent />
+    </Suspense>
   );
 }

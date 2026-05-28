@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { backendApi } from "@/lib/api";
@@ -48,7 +48,7 @@ type SubmissionPayload = {
   submission: Submission;
 };
 
-export default function SurveyPage() {
+function SurveyPageContent() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -310,5 +310,19 @@ export default function SurveyPage() {
         </aside>
       </section>
     </main>
+  );
+}
+
+export default function SurveyPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="grid min-h-screen place-items-center text-white">
+          <p className="animate-pulse text-lg tracking-wide text-white/80">Loading your survey...</p>
+        </main>
+      }
+    >
+      <SurveyPageContent />
+    </Suspense>
   );
 }
