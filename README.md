@@ -44,7 +44,15 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:3000
+Production app: https://prompt-war-six.vercel.app/screen
+Backend API: https://prompt-eng-backend.onrender.com
+
+## Deployment Env Variables
+
+Set these in Vercel (Frontend project):
+
+- `NEXT_PUBLIC_BACKEND_URL=https://prompt-eng-backend.onrender.com`
+- `BACKEND_URL=https://prompt-eng-backend.onrender.com`
 
 ## Notes
 
