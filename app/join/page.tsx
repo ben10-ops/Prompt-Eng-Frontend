@@ -133,7 +133,7 @@ function JoinPageContent() {
           00:{String(secondsLeft).padStart(2, "0")}
         </p>
         <p className="mt-1 text-xs text-amber-50/80">
-          Timer starts as soon as you enter your name. You have only 1 minute to submit.
+          Timer starts as soon as you begin typing your name or prompt. You have only 1 minute to submit.
         </p>
       </div>
 
@@ -161,7 +161,16 @@ function JoinPageContent() {
           Your Prompt
           <textarea
             value={prompt}
-            onChange={(event) => setPrompt(event.target.value)}
+            onChange={(event) => {
+              const nextPrompt = event.target.value;
+              setPrompt(nextPrompt);
+
+              if (timerStartedAt === null && nextPrompt.trim()) {
+                setTimerStartedAt(Date.now());
+              }
+            }}
+            onPaste={(event) => event.preventDefault()}
+            onDrop={(event) => event.preventDefault()}
             className="min-h-44 rounded-2xl border border-white/15 bg-black/30 px-3 py-3 text-base text-white outline-none ring-emerald-300 transition focus:ring-2"
             placeholder="Cinematic futuristic enterprise control room, volumetric rim lighting, reflective floor, wide angle composition, ultra realistic detail, holographic dashboards"
             required
