@@ -150,6 +150,9 @@ function JoinPageContent() {
                 setTimerStartedAt(Date.now());
               }
             }}
+            onPaste={(event) => event.preventDefault()}
+            onDrop={(event) => event.preventDefault()}
+            onContextMenu={(event) => event.preventDefault()}
             className="rounded-xl border border-white/15 bg-black/30 px-3 py-3 text-base text-white outline-none ring-emerald-300 transition focus:ring-2"
             placeholder="Alex"
             required
@@ -171,6 +174,7 @@ function JoinPageContent() {
             }}
             onPaste={(event) => event.preventDefault()}
             onDrop={(event) => event.preventDefault()}
+            onContextMenu={(event) => event.preventDefault()}
             className="min-h-44 rounded-2xl border border-white/15 bg-black/30 px-3 py-3 text-base text-white outline-none ring-emerald-300 transition focus:ring-2"
             placeholder="Cinematic futuristic enterprise control room, volumetric rim lighting, reflective floor, wide angle composition, ultra realistic detail, holographic dashboards"
             required
